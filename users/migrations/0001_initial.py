@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('middle_name', models.CharField(max_length=100)),
                 ('last_name', models.CharField(max_length=100)),
                 ('email', models.EmailField(max_length=254, unique=True)),
-                ('user_type_id', models.ForeignKey(on_delete=django.db.models.deletion.RESTRICT, to='user.usertype')),
+                ('user_type_id', models.ForeignKey(on_delete=django.db.models.deletion.RESTRICT, to='users.usertype')),
             ],
         ),
     ]
