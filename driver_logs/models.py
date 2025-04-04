@@ -10,7 +10,7 @@ class DriverLog(models.Model):
   main_office_address = models.CharField(max_length = 200)
   signature = models.TextField()
   co_driver = models.CharField(max_length = 100)
-  time_zone = models.PositiveSmallIntegerField()
+  time_zone = models.CharField(max_length = 7)
   document_number = models.CharField(max_length = 100)
 
   def __str__(self):
