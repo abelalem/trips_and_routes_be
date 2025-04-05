@@ -4,6 +4,8 @@ from rest_framework import status
 from .models import User, UserType
 from .serializers import UserSerializer
 
+# Users
+
 @api_view(['GET'])
 def get_user_types(request):
   userTypes = UserType.objects.all()
@@ -61,3 +63,17 @@ def delete_user(request, user_id):
   user.delete()
 
   return Response(status=status.HTTP_204_NO_CONTENT)
+
+# Auth
+
+@api_view(['POST'])
+def sign_in(request):
+  return Response(status = status.HTTP_200_OK)
+
+@api_view(['POST'])
+def sign_out(request):
+  return Response(status = status.HTTP_200_OK)
+
+@api_view(['POST'])
+def change_password(request):
+  return Response(status = status.HTTP_200_OK)

@@ -16,6 +16,8 @@ class User(models.Model):
   middle_name = models.CharField(max_length=100)
   last_name = models.CharField(max_length=100)
   email = models.EmailField(unique=True)
+  last_login = models.DateTimeField(null=True)
+  login_token = models.CharField(max_length=100, null=True)
 
   def __str__(self):
     return self.user_name
