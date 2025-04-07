@@ -1,8 +1,9 @@
+import uuid
 from django.db import models
 from users.models import User
 
 class DriverLog(models.Model):
-  id = models.UUIDField(primary_key = True)
+  id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
   user_id = models.ForeignKey(User, on_delete = models.RESTRICT)
   date = models.DateTimeField()
   total_miles = models.IntegerField()
@@ -17,7 +18,7 @@ class DriverLog(models.Model):
     return  (self.user_id, '_', self.date, '_', self.carrier)
 
 class Truck(models.Model):
-  id = models.UUIDField(primary_key = True)
+  id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
   log_id = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
   truck_number = models.CharField(max_length = 100)
   trailer_number = models.CharField(max_length = 100)
@@ -33,7 +34,7 @@ class DutyType(models.Model):
     return self.name
 
 class GraphGrid(models.Model):
-  id = models.UUIDField(primary_key = True)
+  id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
   log_id = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
   duty_type_id = models.ForeignKey(DutyType, on_delete = models.RESTRICT)
   time = models.TimeField()
