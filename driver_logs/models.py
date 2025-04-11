@@ -1,16 +1,17 @@
 import uuid
 from django.db import models
+from django.db.models import CheckConstraint, Q
 from users.models import User
 
 class DriverLog(models.Model):
   id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
-  user_id = models.ForeignKey(User, on_delete = models.RESTRICT)
+  driver = models.ForeignKey(User, on_delete = models.RESTRICT, default = '', related_name="driver")
   date = models.DateTimeField()
   total_miles = models.IntegerField()
   carrier = models.CharField(max_length = 100)
   main_office_address = models.CharField(max_length = 200)
   signature = models.TextField()
-  co_driver = models.CharField(max_length = 100)
+  co_driver = models.ForeignKey(User, on_delete = models.RESTRICT, null = True, related_name="co_driver")
   time_zone = models.CharField(max_length = 7)
   document_number = models.CharField(max_length = 100)
 
