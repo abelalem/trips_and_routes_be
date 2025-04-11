@@ -16,11 +16,21 @@ def get_drivers_logs(request):
 @api_view(['GET'])
 def get_driver_logs(request, user_id):
   try:
-    driver_log = DriverLog.objects.get(user_id = user_id)
-  except DriverLog.DoesNotExist:
-    return Response(status=status.HTTP_404_NOT_FOUND)
+    user_type = UserType.objects.get(name = 'Driver')
+  except UserType.DoesNotExist:
+    return Response('User_Type driver does not exist', status = status.HTTP_404_NOT_FOUND)
 
-  return Response(DriverLogSerializer(driver_log, many = True), status=status.HTTP_200_OK)
+  try:
+    user = User.objects.get(id = user_id, user_type_id = user_type.id)
+  except User.DoesNotExist:
+    return Response("User does not exit", status = status.HTTP_404_NOT_FOUND)
+
+  try:
+    driver_logs = DriverLog.objects.filter(driver = user.id)
+  except DriverLog.DoesNotExist:
+    return Response("No driver logs found", status=status.HTTP_404_NOT_FOUND)
+
+  return Response(DriverLogSerializer(driver_logs, many = True).data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def create_driver_log(request):
@@ -51,14 +61,28 @@ def create_driver_log(request):
 
   return Response(serializedLog.data, status=status.HTTP_201_CREATED)
 
+@api_view(['GET'])
+def get_driver_log(request, log_id):
+  try:
+    driver_log = DriverLog.objects.get(id = log_id)
+  except DriverLog.DoesNotExist:
+    return Response('Driver_Log does not exist', status = status.HTTP_404_NOT_FOUND)
+
+  return Response(DriverLogSerializer(driver_log).data, status = status.HTTP_200_OK)
+
 @api_view(['PUT'])
 def update_driver_log(request, log_id):
+  driver_log_data = request.data
+
   try:
     driver_log = DriverLog.objects.get(id = log_id)
   except DriverLog.DoesNotExist:
     return Response(status = status.HTTP_404_NOT_FOUND)
 
-  serialized_log = DriverLogSerializer(request.data)
+  if driver_log.driver.id.__str__() != driver_log_data['driver']:
+    return Response("Can not change driver for driver_log", status = status.HTTP_400_BAD_REQUEST)
+
+  serialized_log = DriverLogSerializer(driver_log, data = request.data)
 
   if not serialized_log.is_valid():
     return Response(serialized_log.errors, status = status.HTTP_400_BAD_REQUEST)

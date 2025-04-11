@@ -1,6 +1,5 @@
 import uuid
 from django.db import models
-from django.db.models import CheckConstraint, Q
 from users.models import User
 
 class DriverLog(models.Model):
@@ -14,6 +13,11 @@ class DriverLog(models.Model):
   co_driver = models.ForeignKey(User, on_delete = models.RESTRICT, null = True, related_name="co_driver")
   time_zone = models.CharField(max_length = 7)
   document_number = models.CharField(max_length = 100)
+
+  class Meta:
+    constraints = [
+      models.UniqueConstraint("date", "driver", name = "date_driver_unique_constraint")
+    ]
 
   def __str__(self):
     return  (self.user_id, '_', self.date, '_', self.carrier)
