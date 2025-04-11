@@ -16,7 +16,7 @@ class DriverLog(models.Model):
 
   class Meta:
     constraints = [
-      models.UniqueConstraint("date", "driver", name = "date_driver_unique_constraint")
+      models.UniqueConstraint("driver", "date", name = "driver_date_unique_constraint")
     ]
 
   def __str__(self):
@@ -24,9 +24,14 @@ class DriverLog(models.Model):
 
 class Truck(models.Model):
   id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
-  log_id = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
+  driver_log = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
   truck_number = models.CharField(max_length = 100)
   trailer_number = models.CharField(max_length = 100)
+
+  class Meta:
+    constraints = [
+      models.UniqueConstraint('driver_log', 'truck_number', name = 'driver_log-truck_number-unique_constraint')
+    ]
 
   def __str__(self):
     return (self.log_id, '_', self.truck_number, '_', self.trailer_number)
