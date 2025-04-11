@@ -6,7 +6,7 @@ from users.models import User
 class DriverLog(models.Model):
   id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
   driver = models.ForeignKey(User, on_delete = models.RESTRICT, default = '', related_name="driver")
-  date = models.DateTimeField()
+  date = models.DateField()
   total_miles = models.IntegerField()
   carrier = models.CharField(max_length = 100)
   main_office_address = models.CharField(max_length = 200)

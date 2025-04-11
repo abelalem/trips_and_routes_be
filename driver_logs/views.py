@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from users.models import User, UserType
 from .models import DriverLog, Truck, DutyType, GraphGrid
 from .serializer import DriverLogSerializer, TruckSerializer, DutyTypeSerializer, GraphGridSerializer
 
@@ -23,7 +24,25 @@ def get_driver_logs(request, user_id):
 
 @api_view(['POST'])
 def create_driver_log(request):
-  serializedLog = DriverLogSerializer(request.data)
+  driver_log_data = request.data
+
+  try:
+    user_type = UserType.objects.get(name = 'Driver')
+  except UserType.DoesNotExist:
+    return Response("User_Type driver does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  try:
+    driver = User.objects.get(id = driver_log_data['driver'], user_type_id = user_type.id)
+  except User.DoesNotExist:
+    return Response("User with a Driver User_Type for Driver does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  if driver_log_data['co_driver'] is not None:
+    try:
+      co_driver = User.objects.get(id = driver_log_data['co_driver'], user_type_id = user_type.id)
+    except User.DoesNOtExist:
+      return Response("User with a Driver User_Type for co_Driver does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  serializedLog = DriverLogSerializer(data = driver_log_data)
 
   if not serializedLog.is_valid():
     return Response(serializedLog.errors, status=status.HTTP_400_BAD_REQUEST)
