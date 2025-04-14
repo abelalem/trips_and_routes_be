@@ -1,9 +1,10 @@
+from datetime import datetime
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from users.models import User, UserType
-from .models import DriverLog, Truck, DutyType, GraphGrid
-from .serializer import DriverLogSerializer, TruckSerializer, DutyTypeSerializer, GraphGridSerializer
+from .models import DriverLog, DutyType, GraphGrid
+from .serializer import DriverLogSerializer, DutyTypeSerializer, GraphGridSerializer
 
 # ========== Drivers Logs ==========
 
@@ -42,13 +43,13 @@ def create_driver_log(request):
     return Response("User_Type driver does not exist", status = status.HTTP_404_NOT_FOUND)
 
   try:
-    driver = User.objects.get(id = driver_log_data['driver'], user_type_id = user_type.id)
+    _ = User.objects.get(id = driver_log_data['driver'], user_type_id = user_type.id)
   except User.DoesNotExist:
     return Response("User with a Driver User_Type for Driver does not exist", status = status.HTTP_404_NOT_FOUND)
 
   if driver_log_data['co_driver'] is not None:
     try:
-      co_driver = User.objects.get(id = driver_log_data['co_driver'], user_type_id = user_type.id)
+      _ = User.objects.get(id = driver_log_data['co_driver'], user_type_id = user_type.id)
     except User.DoesNOtExist:
       return Response("User with a Driver User_Type for co_Driver does not exist", status = status.HTTP_404_NOT_FOUND)
 
@@ -91,53 +92,6 @@ def update_driver_log(request, log_id):
 
   return Response(serialized_log.data, status = status.HTTP_200_OK)
 
-# ========== Truck Information ==========
-@api_view(['GET'])
-def get_truck_info(request, log_id):
-  try:
-    truck_info = Truck.objects.get(log_id = log_id)
-  except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
-
-  return Response(TruckSerializer(truck_info, many = True).data, status = status.HTTP_200_OK)
-
-@api_view(['POST'])
-def add_truck_info(request, log_id):
-  try:
-    driver_log = DriverLog.objects.get(id = log_id)
-  except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
-
-  serialized_truck_info = TruckSerializer(request.data)
-
-  if not serialized_truck_info.is_valid():
-    return Response(serialized_truck_info.errors, status = status.HTTP_400_BAD_REQUEST)
-
-  serialized_truck_info.save()
-
-  return Response(serialized_truck_info.data, status = status.HTTP_201_CREATED)
-
-@api_view(['PUT'])
-def update_truck_info(request, log_id, truck_id):
-  try:
-    driver_log = DriverLog.objects.get(id = log_id)
-  except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
-
-  try:
-    truck = Truck.objects.get(id = truck_id)
-  except Truck.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
-
-  serialized_truck_info = TruckSerializer(request.data)
-
-  if not serialized_truck_info.is_valid():
-    return Response(serialized_truck_info.errors, status = status.HTTP_400_BAD_REQUEST)
-
-  serialized_truck_info.save()
-
-  return Response(serialized_truck_info.data, status = status.HTTP_200_OK)
-
 # ========== Graph Grid Information ==========
 
 @api_view(['GET'])
@@ -149,42 +103,65 @@ def get_duty_types(request):
 @api_view(['GET'])
 def get_graph_grids(request, log_id):
   try:
-    driver_log = DriverLog.objects.get(id = log_id)
+    _ = DriverLog.objects.get(id = log_id)
   except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
+    return Response("Driver_Log Does not exist", status = status.HTTP_404_NOT_FOUND)
 
   try:
-    graph_grids = GraphGrid.objects.get(log_id = log_id)
+    graph_grids = GraphGrid.objects.filter(driver_log = log_id).order_by("sequence")
   except GraphGrid.DoesNotExist:
     return Response(status = status.HTTP_404_NOT_FOUND)
 
-  return Response(GraphGridSerializer(graph_grids, many = True))
+  return Response(GraphGridSerializer(graph_grids, many = True).data)
 
 @api_view(['POST'])
 def add_graph_grid(request, log_id):
-  try:
-    driver_log = DriverLog.objects.get(id = log_id)
-  except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
+  graph_grid_data = request.data
 
-  serialized_graph_grid = GraphGridSerializer(request.data)
+  try:
+    _ = DriverLog.objects.get(id = log_id)
+  except DriverLog.DoesNotExist:
+    return Response("Driver_Log does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  try:
+    duty_type = DutyType.objects.get(name = graph_grid_data["duty_type"])
+  except DutyType.DoesNotExist:
+    return Response("Duty_Type does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  graph_grids = GraphGrid.objects.filter(driver_log = log_id).order_by("sequence")
+
+  if graph_grids.count() > 0 :
+    last_index = graph_grids.count() - 1
+    new_time = datetime.strptime(graph_grid_data['time'], "%H:%M:%S").time()
+    if new_time <= graph_grids[last_index].time :
+      return Response("Invalid time value.", status = status.HTTP_400_BAD_REQUEST)
+
+    if graph_grids[last_index].duty_type.name == graph_grid_data['duty_type'] :
+      return Response("Invalid duty_type value.", status = status.HTTP_400_BAD_REQUEST)
+
+  graph_grid_dict = {
+    "sequence": graph_grids.count() + 1,
+    "driver_log": log_id,
+    "duty_type": duty_type.id,
+    "time": graph_grid_data["time"],
+    "remark": graph_grid_data["remark"]
+  }
+
+  serialized_graph_grid = GraphGridSerializer(data = graph_grid_dict)
 
   if not serialized_graph_grid.is_valid():
-    return Response(status = status.HTTP_400_BAD_REQUEST)
+    return Response(serialized_graph_grid.errors, status = status.HTTP_400_BAD_REQUEST)
 
   serialized_graph_grid.save()
 
   return Response(serialized_graph_grid.data, status = status.HTTP_201_CREATED)
 
 @api_view(['PUT'])
-def update_graph_grid(request, log_id, graph_grid_id):
-  try:
-    driver_log = DriverLog.objects.get(id = log_id)
-  except DriverLog.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
+def update_graph_grid(request, graph_grid_id):
+  graph_grid_data = request.data
 
   try:
-    graph_grids = GraphGrid.objects.get(log_id = log_id)
+    graph_grids = GraphGrid.objects.get(id = graph_grid_id)
   except GraphGrid.DoesNotExist:
     return Response(status = status.HTTP_404_NOT_FOUND)
 

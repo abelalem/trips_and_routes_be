@@ -3,6 +3,10 @@ from django.db import models
 from users.models import User
 
 class DriverLog(models.Model):
+
+  def truck_info_default():
+    return {"truck_number": "", "trailer_numbers": []}
+
   id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
   driver = models.ForeignKey(User, on_delete = models.RESTRICT, default = '', related_name="driver")
   date = models.DateField()
@@ -13,6 +17,8 @@ class DriverLog(models.Model):
   co_driver = models.ForeignKey(User, on_delete = models.RESTRICT, null = True, related_name="co_driver")
   time_zone = models.CharField(max_length = 7)
   document_number = models.CharField(max_length = 100)
+  truck_info = models.JSONField("TruckInfo", default = truck_info_default)
+  prev_driver_log = models.ForeignKey('self', on_delete = models.RESTRICT, null = True, related_name="previous_driver_log")
 
   class Meta:
     constraints = [
@@ -22,20 +28,6 @@ class DriverLog(models.Model):
   def __str__(self):
     return  (self.user_id, '_', self.date, '_', self.carrier)
 
-class Truck(models.Model):
-  id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
-  driver_log = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
-  truck_number = models.CharField(max_length = 100)
-  trailer_number = models.CharField(max_length = 100)
-
-  class Meta:
-    constraints = [
-      models.UniqueConstraint('driver_log', 'truck_number', name = 'driver_log-truck_number-unique_constraint')
-    ]
-
-  def __str__(self):
-    return (self.log_id, '_', self.truck_number, '_', self.trailer_number)
-
 class DutyType(models.Model):
   id = models.IntegerField(primary_key = True)
   name = models.CharField(max_length = 100)
@@ -44,11 +36,18 @@ class DutyType(models.Model):
     return self.name
 
 class GraphGrid(models.Model):
+
   id = models.UUIDField(primary_key = True, default=uuid.uuid4, editable=False)
-  log_id = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
-  duty_type_id = models.ForeignKey(DutyType, on_delete = models.RESTRICT)
+  sequence = models.PositiveIntegerField(default = 1)
+  driver_log = models.ForeignKey(DriverLog, on_delete = models.RESTRICT)
+  duty_type = models.ForeignKey(DutyType, on_delete = models.RESTRICT)
   time = models.TimeField()
-  remark = models.CharField(max_length = 200)
+  remark = models.JSONField("Remark", null = True)
+
+  class Meta:
+    constraints = [
+      models.UniqueConstraint("sequence", "driver_log", name = "sequence-driver_log-unique_constraint")
+    ]
 
   def __str__(self):
-    return (self.log_id, self.duty_type_id, self.time, self.remark)
+    return (self.sequence, self.driver_log, self.duty_type, self.time)
