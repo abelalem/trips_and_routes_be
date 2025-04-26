@@ -119,12 +119,12 @@ def add_graph_grid(request, log_id):
   graph_grid_data = request.data
 
   try:
-    _ = DriverLog.objects.get(id = log_id)
+    driver_log = DriverLog.objects.get(id = log_id)
   except DriverLog.DoesNotExist:
     return Response("Driver_Log does not exist", status = status.HTTP_404_NOT_FOUND)
 
   try:
-    duty_type = DutyType.objects.get(name = graph_grid_data["duty_type"])
+    duty_type = DutyType.objects.get(name = graph_grid_data["duty_type"]["name"])
   except DutyType.DoesNotExist:
     return Response("Duty_Type does not exist", status = status.HTTP_404_NOT_FOUND)
 
@@ -136,8 +136,16 @@ def add_graph_grid(request, log_id):
     if new_time <= graph_grids[last_index].time :
       return Response("Invalid time value.", status = status.HTTP_400_BAD_REQUEST)
 
-    if graph_grids[last_index].duty_type.name == graph_grid_data['duty_type'] :
+    if graph_grids[last_index].duty_type.name == graph_grid_data['duty_type']['name'] :
       return Response("Invalid duty_type value.", status = status.HTTP_400_BAD_REQUEST)
+  elif driver_log.prev_driver_log is not None :
+    prev_graph_grids = GraphGrid.objects.filter(driver_log = driver_log.prev_driver_log)
+    if prev_graph_grids.count() == 0 :
+      return Response("Invalid graph_grid info for prev_driver_log.", status = status.HTTP_400_BAD_REQUEST)
+    else :
+      last_index = prev_graph_grids.count() - 1
+      if prev_graph_grids[last_index].duty_type.name == graph_grid_data['duty_type']['name'] :
+        return Response("Invalid duty_type value.", status = status.HTTP_400_BAD_REQUEST)
 
   graph_grid_dict = {
     "sequence": graph_grids.count() + 1,
@@ -161,11 +169,56 @@ def update_graph_grid(request, graph_grid_id):
   graph_grid_data = request.data
 
   try:
-    graph_grids = GraphGrid.objects.get(id = graph_grid_id)
-  except GraphGrid.DoesNotExist:
-    return Response(status = status.HTTP_404_NOT_FOUND)
+    driver_log = DriverLog.objects.get(id = graph_grid_data['driver_log'])
+  except DriverLog.DoesNotExist:
+    return Response("Driver_Log for Graph_Grid Does not exist.", status = status.HTTP_400_BAD_REQUEST)
 
-  serialized_graph_grid = GraphGridSerializer(request.data)
+  try:
+    graph_grid = GraphGrid.objects.get(id = graph_grid_id)
+  except GraphGrid.DoesNotExist:
+    return Response("Graph_Grid does not exist", status = status.HTTP_404_NOT_FOUND)
+
+  prev_graph_grids = GraphGrid.objects.filter(sequence = graph_grid.sequence - 1, driver_log = graph_grid.driver_log.id)
+  next_graph_grids = GraphGrid.objects.filter(sequence = graph_grid.sequence + 1, driver_log = graph_grid.driver_log.id)
+
+  if prev_graph_grids.count() > 1 and next_graph_grids.count() > 1 :
+    return Response("Something wrong with the graph_grid information.", status = status.HTTP_400_BAD_REQUEST)
+
+  # Check for prev time and duty_type
+  if prev_graph_grids.count() > 0 :
+    if prev_graph_grids[0].time >= datetime.strptime(graph_grid_data["time"], "%H:%M:%S").time() :
+      return Response("Invalid time value.", status = status.HTTP_400_BAD_REQUEST)
+
+    if prev_graph_grids[0].duty_type.name == graph_grid_data["duty_type"]["name"] :
+      return Response("Invalid duty_type value.", status = status.HTTP_400_BAD_REQUEST)
+
+  # Check for prev duty_type based on prev driver_log
+  if driver_log.prev_driver_log is None :
+    if graph_grid_data["duty_type"]["name"] == "Off_Duty" :
+      return Response("Invalid duty_type value", status = status.HTTP_400_BAD_REQUEST)
+  else :
+    prev_graph_grids = GraphGrid.objects.filter(driver_log = driver_log.prev_driver_log).order_by("sequence")
+
+    if graph_grid_data["duty_type"]["name"] == prev_graph_grids[prev_graph_grids.count() - 1].duty_type.name :
+      return Response("Invalid duty_type value", status = status.HTTP_400_BAD_REQUEST)
+
+  # Check for next time and duty_type
+  if next_graph_grids.count() > 0 :
+    if next_graph_grids[0].time <= datetime.strptime(graph_grid_data["time"], "%H:%M:%S").time() :
+      return Response("Invalid time value.", status = status.HTTP_400_BAD_REQUEST)
+
+    if next_graph_grids[0].duty_type == graph_grid_data["duty_type"]["name"] :
+      return Response("Invalid duty_type value.", status = status.HTTP_400_BAD_REQUEST)
+
+  graph_grid_dict = {
+    "sequence": graph_grid.sequence,
+    "driver_log": graph_grid.driver_log.id,
+    "duty_type": graph_grid_data["duty_type"]["name"],
+    "time": graph_grid_data["time"],
+    "remark": graph_grid_data["remark"]
+  }
+
+  serialized_graph_grid = GraphGridSerializer(graph_grid, data = graph_grid_dict)
 
   if not serialized_graph_grid.is_valid():
     return Response(status = status.HTTP_400_BAD_REQUEST)
